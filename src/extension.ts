@@ -2,22 +2,74 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+import {exec} from 'child_process'
+import { IncomingMessage } from 'http';
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "injectguard" is now active!');
+	console.log('Congratulations, your "injectguard" is now active!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('injectguard.injection', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from InjectGuard!');
-	});
+	let disposable = vscode.commands.registerCommand('injectguard.injection', async () => {
+
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showInformationMessage('No editor is active');
+            return;
+        }
+
+        const http = require('http');
+
+        const HOST = '0.0.0.0';
+        const PORT = 8000;
+
+        // Perform a GET request to the server
+        http.get(`http://${HOST}:${PORT}`, (response: IncomingMessage) => {
+            let serverResponse = '';
+
+            // Concatenate chunks of data received from the server
+            response.on('data', (chunk:string) => {
+                serverResponse += chunk;
+            });
+
+            // When all data has been received, log the server's response
+            response.on('end', () => {
+                console.log('Server Response:', serverResponse);
+            });
+        }).on('error', (error:Error) => {
+            console.error('Error:', error);
+        });
+
+		// Retrieve selected text
+        const selection = editor.selection;
+        const text = editor.document.getText(selection);
+		
+		// HERE : the algo should be called
+		const isVulnerable = /\d/.test(text);
+		
+		// highlight in red if someth's wrong
+		const decorationType = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(255,0,0,0.3)' // Light red background
+        });
+
+        if (isVulnerable) {
+            // Add decoration to the selected text
+            editor.setDecorations(decorationType, [selection]);
+            vscode.window.showInformationMessage('Selected text contains digits!');
+            // editor.edit(editBuilder => {
+            //     editBuilder.replace(selection,serverResponse)
+            // })
+        } else {
+            // Clear decorations if there are no vulnerabilities
+            editor.setDecorations(decorationType, []);
+            vscode.window.showInformationMessage('Selected text is fine.');
+        }
+        
+        vscode.window.showInformationMessage('Selected text transformed!');
+    });
 
 	context.subscriptions.push(disposable);
 }
