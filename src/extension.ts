@@ -2,15 +2,13 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-import {exec} from 'child_process'
 import { IncomingMessage } from 'http';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
+	// This line of code will only be executed once when the extension is activated
 	console.log('Congratulations, your "injectguard" is now active!');
 
 	let disposable = vscode.commands.registerCommand('injectguard.injection', async () => {
@@ -21,8 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        const http = require('http');
+        // Retrieve selected text
+        const selection = editor.selection;
+        const text = editor.document.getText(selection);
 
+        console.log(text);
+		
+        //Initialize server parameters
+        const http = require('http');
         const HOST = '0.0.0.0';
         const PORT = 8000;
 
@@ -43,14 +47,10 @@ export function activate(context: vscode.ExtensionContext) {
             console.error('Error:', error);
         });
 
-		// Retrieve selected text
-        const selection = editor.selection;
-        const text = editor.document.getText(selection);
-		
 		// HERE : the algo should be called
 		const isVulnerable = /\d/.test(text);
 		
-		// highlight in red if someth's wrong
+		// highlight in red if there is an injection vulnerability
 		const decorationType = vscode.window.createTextEditorDecorationType({
             backgroundColor: 'rgba(255,0,0,0.3)' // Light red background
         });
@@ -59,9 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
             // Add decoration to the selected text
             editor.setDecorations(decorationType, [selection]);
             vscode.window.showInformationMessage('Selected text contains digits!');
-            // editor.edit(editBuilder => {
-            //     editBuilder.replace(selection,serverResponse)
-            // })
+            
         } else {
             // Clear decorations if there are no vulnerabilities
             editor.setDecorations(decorationType, []);
