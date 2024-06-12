@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (isVulnerable) {
             // Add decoration to the selected text
             editor.setDecorations(decorationType, [selection]);
-            vscode.window.showInformationMessage('Selected text contains digits!');
+            vscode.window.showInformationMessage('Code snippet vulnerable!');
             
         } else {
             // Clear decorations if there are no vulnerabilities
@@ -66,7 +66,6 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('Selected text is fine.');
         }
         
-        vscode.window.showInformationMessage('Selected text transformed!');
     });
 
 	context.subscriptions.push(disposable);

@@ -7,13 +7,14 @@ import path from 'path';
 
 /* FUNCTIONS DECLARATION */ 
 function assertIsDefined<T>(value: T): asserts value is NonNullable<T> {
+	assert.notEqual(value,null);
     if (value === undefined || value === null) {
         throw new Error(`${value} is not defined`)
     }
 }
 
 /**
- * Loops through all files in the out/test/samples directory that have names beginning with prefixName,  
+ * Loops through all files in the src/test/samples directory that have names beginning with prefixName,  
  * and check if their contents match the provided regexp
  * @param prefixName 
  * @param regexp 
@@ -22,44 +23,36 @@ function assertLanguageinFiles(prefixName, regexp) {
 	// Initialize an array to store the contents of each file
 	let fileContentsArray: string[] = [];
 
-	// const testFolder = 'samples';
 	const testFolder = path.join(__dirname,"../../src/test/samples");
-	fs.readdir(testFolder, (err, files) => {
-		if (err) {
-			console.error('Error reading directory:', err);
-			return;
-		}
-	
-		// Filter files starting with 'string'
-		const filteredFiles = files.filter(file => file.startsWith('sql'));
-		
-		// Read each file and store its content in the array
-		filteredFiles.forEach(file => {
-			const filePath = path.join(testFolder, file);
-			try {
-				const content = fs.readFileSync(filePath, 'utf8');
-				fileContentsArray.push(content);
-				console.log(content)
-			} catch (err) {
-				console.error(`Error reading file ${filePath}:`, err);
-			}
-		});
 
-		fileContentsArray.forEach(content =>{
-			// const matches = content.match(/\b(SELECT|INSERT|UPDATE|DELETE)\b[\s\S]+?\b(FROM|INTO|SET|WHERE)\b[\s\S]*;/i);	
-			const matches = content.match(regexp);	
-			assertIsDefined(matches);			
-		})
-	
-	});
+	const files = fs.readdirSync(testFolder)
+    .filter((file) => file.startsWith(prefixName));
+
+	for(let file of files ){
+		const filePath = path.join(testFolder, file);
+		const content = fs.readFileSync(filePath, 'utf8');
+		try{
+			// check if each file matches given regexp
+			assertIsDefined(content.match(regexp));
+		}catch(err){
+			console.log("ERROR");
+			return false;
+		}
+	}
+
+	return true;
 }
 
 
 
 /* TESTS START FROM HERE */ 
-test('Parsing SQL queries test', () => {
-
+test('Parsing files containing SQL queries', () => {
 	var regexp = /\b(SELECT|INSERT|UPDATE|DELETE)\b[\s\S]+?\b(FROM|INTO|SET|WHERE)\b[\s\S]*;/i;
-	assertLanguageinFiles('sql',regexp);
-
+	assert.strictEqual(assertLanguageinFiles('ok-sql',regexp),true);
 });
+
+test('Parsing files without SQL queries', () => {
+	var regexp = /\b(SELECT|INSERT|UPDATE|DELETE)\b[\s\S]+?\b(FROM|INTO|SET|WHERE)\b[\s\S]*;/i;
+	assert.notStrictEqual(assertLanguageinFiles('ko-sql',regexp),true);
+});
+
