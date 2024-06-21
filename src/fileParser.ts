@@ -1,88 +1,27 @@
 const engine = require("php-parser");
-import * as fs from 'fs';
-// var Parser = require("jison").Parser;
-
-// interface args {
-//     bar: string;
-//     baz: boolean;
-//     idk: number;
-// }
+import * as assert from 'assert';
+import { Element, Type, Variable } from './interfaces';
 
 
-export class fileParser{
+
+export class FileParser{
     ast : any;
 
-    mixedArray: (string | object)[]; 
+    private static readonly sql_functions: string[] = ['sqlite_query', 'mysql_query', 'mysqli_query', 'pg_query'];
 
-    private get_expression(expression){
-        const leftElt = expression['left'];
-        this.mixedArray.push(leftElt['name']);
-        
-        const rightElt = expression['right'];
+    private static readonly sqlSelectRegex: RegExp = /^(?=.*SELECT.*FROM)(?!.*(?:CREATE|DROP|UPDATE|INSERT|ALTER|DELETE|ATTACH|DETACH)).*$/;
+    
 
-        switch(rightElt['kind']) { 
-            case "call": { 
-                // retrieve function name
-                const funcName =  rightElt['what']['name'];
-
-                // check function's arguments
-                const bool_arg = Object.entries(rightElt).filter(([key1,_]) => key1 == "arguments");
-                
-                // Make sure function contains arguments
-                if(bool_arg){
-                    // store number of arguments
-                    const numb_arg = rightElt['arguments'].length;
-                    
-                    const function_args: object[] = [];
-                    
-                    // Extract all arguments
-                    for(let i=0 ; i < numb_arg ; i++){
-
-                        if(rightElt['arguments'][i]['kind'] == "bin"){
-                            function_args.push(rightElt['arguments'][i]['left']['raw']);
-                            function_args.push(rightElt['arguments'][i]['right']['raw']);    
-                        }
-
-                    }
-                    this.mixedArray.push(function_args);
-                    // console.log(rightElt['arguments'].length)
-                    // for(let i =0; i< numb_arg; i++)
-                        // console.log(function_args[i]);
-                }
-
-                break; 
-            } 
-            case "variable": { 
-                const varName = rightElt['what']['name'];
-                this.mixedArray.push(rightElt['name'])
-                break; 
-            } 
-            case "offsetlookup":{
-                // offsetlookup <==> probably $_GET or $_POST
-                if(rightElt['offset']['kind'] == "string"){
-                    const varName = rightElt['offset']['value'];
-                    this.mixedArray.push(rightElt['what']['name']);
-                }
-                break;
-            }
-            default: { 
-                break; 
-            } 
-        } 
+    constructor(codeBlock){
+        this.ast = this.build_ast(codeBlock);      
     }
 
-    private displayArr(){
-        this.mixedArray.forEach( (element) => {
-            // console.log(typeof element)
-            if(typeof element == "object")
-                console.log(JSON.stringify(element));
-            else console.log(element); 
-
-        });
+    // Static method to test if a given SQL query matches the criteria
+    private static isSelectQuery(query: string): boolean {
+        return this.sqlSelectRegex.test(query);
     }
 
-
-    constructor(filePath){
+    private build_ast(codeBlock){
         // initialize a new parser instance
         const parser = new engine({
             // some options :
@@ -95,30 +34,117 @@ export class fileParser{
             },
         });
 
-        const phpFile = fs.readFileSync(filePath);
-        this.ast = parser.parseCode(phpFile);
-        this.mixedArray = [];
-        this.dfsUtil(this.ast,[]);
-        console.log("here");
-        this.displayArr();
-        // console.log(this.mixedArray);
+        return parser.parseCode(codeBlock);
     }
-    
-    dfsUtil(v, visited){
-        for (const [key, value] of Object.entries(v)) {
-            if(value != null && typeof value == "object" && key!="loc" && key!="position"){
-                this.dfsUtil(value,visited);
 
-                // if(key=="left" && value['kind']=="variable")
-                //     console.log(value);
-                if(value['kind'] == "expressionstatement"){
-                    this.get_expression(value['expression']);
+    private get_element(element : object) : Element {
+        switch(element['kind']){
+            case "encapsed":
+                return this.get_encapsed(element);
+            case "string":
+                return this.get_string(element);
+            case "variable":
+                return this.get_variable(element);
+            case "numner":
+                return this.get_number(element);
+            case "offsetlookup":
+                return this.get_offsetlookup(element);
+            default:
+                console.log("DEFAULT");  
+                return {type:Type.NULL, value: "" };
+        }
+    }
+
+
+    /**
+     * Extract arguments of functions that execute sql queries 
+     * Then checks if user's input is present in these arguments 
+     */
+    public extract_elements(){
+        let elements : Array<Element> = new Array<Element>();
+
+        // Retrieve program node
+        const program = this.ast['children'];
+        // console.log(this.extract_elements_sub(program));
+        const args = this.extract_elements_sub(program);
+        console.log(JSON.stringify(args))
+
+        // const encapsed = args.filter(arg => arg.type == Type.ENCAPSED);
+        // assert.strictEqual(encapsed.length,1);
+
+        // const regex = /\$[a-zA-Z0-9_]+/g;
+        // const matches = encapsed[0].value.match(regex);
+
+        // Retrieve variables 
+        // let variables: string[] = [];
+        // if(matches) {
+        //     matches.forEach(match => variables.push(match));
+        // } else {
+        //     console.log("No matches found.");
+        // }
+    
+        return elements;
+    }
+
+    private extract_elements_sub(node) : [Array<Element>,Array<Variable>] {
+        let elements : Array<Element> = new Array<Element>();
+        let variables : Array<Variable> = new Array<Variable>();
+
+        for (const [key, value] of Object.entries(node)) {
+            if(value != null && typeof value == "object" && key!="loc" && key!="position"){
+                // console.log(value);
+                if(value['kind'] == "call" && FileParser.sql_functions.includes(value['what']['name'])){
+                    for(let arg of value['arguments']){
+                        // console.log(arg)
+                        if(arg['kind'] == "bin"){
+                            // console.log("here")
+                            elements = elements.concat(this.get_bin(arg));
+                        }else{
+                            elements.push(this.get_element(arg));
+                        }
+                    }
                 }
-                // console.log("arg taille:" + value['expression']);
+
+                // Detect user's inputs
+                if(value['kind'] == "assign" && value['left']['kind'] == "variable" && value['right']['kind'] == "offsetlookup"){
+                    
+                }
+
+                elements = elements.concat(this.extract_elements_sub(value)[0]);
+                variables = variables.concat(this.extract_elements_sub(value)[1])
             }
         }
-        
+
+        return [elements,variables];
     }
 
+    private get_bin(value) : Array<Element>{
+        if(value['kind'] == "bin"){
+            // var bin_elements: string[];
+            let bin_elements: Array<Element> = new Array<Element>();
+            bin_elements = this.get_bin(value['left']);
+            
+            bin_elements = bin_elements.concat(this.get_bin(value['right']));
+            return bin_elements;
+           
+        }else{
+            let bin_elements: Array<Element> = new Array<Element>();
+            bin_elements.push(this.get_element(value));
+            return bin_elements;
+        } 
+    }
+
+    private get_string(statement : object) : Element {
+        return {type: Type.STRING, value: statement['value']};
+    }
+    private get_variable(statement : object) : Element {
+        return {type: Type.VARIABLE, value: statement['name']};
+
+    }
+    private get_encapsed(statement : object) : Element {
+        return {type: Type.ENCAPSED, value: statement['raw']};
+    }
+    private get_number(statement : object) : Element {return {type: Type.NUMBER, value: statement['value']};}
+    private get_offsetlookup(statement : object) : Element {return {type: Type.OFFSET, value: statement['what']['name']};}
 
 }

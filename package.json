@@ -17,7 +17,14 @@
         "command": "injectguard.injection",
         "title": "InjectGuard "
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [{
+          "command": "injectguard.injection",
+          "group": "bookmarks",
+          "when": "editorHasSelection"
+    }]
+  }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
