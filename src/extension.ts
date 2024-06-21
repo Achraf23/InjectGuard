@@ -1,8 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-
-import { IncomingMessage } from 'http';
+import { FileParser } from './fileParser';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -19,36 +18,22 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        // Retrieve selected text
+        // Retrieve selected code
         const selection = editor.selection;
-        const text = editor.document.getText(selection);
+        const sourceCode = editor.document.getText(selection);
 
-        console.log(text);
-		
-        //Initialize server parameters
-        const http = require('http');
-        const HOST = '0.0.0.0';
-        const PORT = 8000;
+        const fileParser = new FileParser(sourceCode)
+        const vars = fileParser.extract_elements();
 
-        // Perform a GET request to the server
-        http.get(`http://${HOST}:${PORT}`, (response: IncomingMessage) => {
-            let serverResponse = '';
-
-            // Concatenate chunks of data received from the server
-            response.on('data', (chunk:string) => {
-                serverResponse += chunk;
-            });
-
-            // When all data has been received, log the server's response
-            response.on('end', () => {
-                console.log('Server Response:', serverResponse);
-            });
-        }).on('error', (error:Error) => {
-            console.error('Error:', error);
-        });
+        // vars.forEach( (element) => {
+        //     // console.log(element)
+        //     if(typeof element == "object")
+        //         console.log(JSON.stringify(element));
+        //     else console.log(element); 
+        // });
 
 		// HERE : the algo should be called
-		const isVulnerable = /\d/.test(text);
+		const isVulnerable = /\d/.test(sourceCode);
 		
 		// highlight in red if there is an injection vulnerability
 		const decorationType = vscode.window.createTextEditorDecorationType({
