@@ -1,21 +1,8 @@
 const engine = require("php-parser");
 import * as assert from 'assert';
-import exp from 'constants';
-import { stat } from 'fs';
+import { Element, Type, Variable } from './interfaces';
 
-enum Type {
-    VARIABLE,
-    STRING,
-    ENCAPSED,
-    NUMBER,
-    OFFSET,
-    NULL
-}
 
-interface Element {
-    type : Type,
-    value : string
-}
 
 export class FileParser{
     ast : any;
@@ -80,26 +67,28 @@ export class FileParser{
         const program = this.ast['children'];
         // console.log(this.extract_elements_sub(program));
         const args = this.extract_elements_sub(program);
+        console.log(JSON.stringify(args))
 
-        const encapsed = args.filter(arg => arg.type == Type.ENCAPSED);
-        assert.strictEqual(encapsed.length,1);
+        // const encapsed = args.filter(arg => arg.type == Type.ENCAPSED);
+        // assert.strictEqual(encapsed.length,1);
 
-        const regex = /\$[a-zA-Z0-9_]+/g;
-        const matches = encapsed[0].value.match(regex);
+        // const regex = /\$[a-zA-Z0-9_]+/g;
+        // const matches = encapsed[0].value.match(regex);
 
         // Retrieve variables 
-        let variables: string[] = [];
-        if(matches) {
-            matches.forEach(match => variables.push(match));
-        } else {
-            console.log("No matches found.");
-        }
+        // let variables: string[] = [];
+        // if(matches) {
+        //     matches.forEach(match => variables.push(match));
+        // } else {
+        //     console.log("No matches found.");
+        // }
     
         return elements;
     }
 
-    private extract_elements_sub(node) : Array<Element> {
+    private extract_elements_sub(node) : [Array<Element>,Array<Variable>] {
         let elements : Array<Element> = new Array<Element>();
+        let variables : Array<Variable> = new Array<Variable>();
 
         for (const [key, value] of Object.entries(node)) {
             if(value != null && typeof value == "object" && key!="loc" && key!="position"){
@@ -121,11 +110,12 @@ export class FileParser{
                     
                 }
 
-                elements = elements.concat(this.extract_elements_sub(value));
+                elements = elements.concat(this.extract_elements_sub(value)[0]);
+                variables = variables.concat(this.extract_elements_sub(value)[1])
             }
         }
 
-        return elements;
+        return [elements,variables];
     }
 
     private get_bin(value) : Array<Element>{
@@ -145,50 +135,16 @@ export class FileParser{
     }
 
     private get_string(statement : object) : Element {
-        return {type: Type.STRING, value: statement['value']}
+        return {type: Type.STRING, value: statement['value']};
     }
     private get_variable(statement : object) : Element {
-        return {type: Type.VARIABLE, value: statement['name']}
+        return {type: Type.VARIABLE, value: statement['name']};
 
     }
     private get_encapsed(statement : object) : Element {
-        return {type: Type.ENCAPSED, value: statement['raw']}
+        return {type: Type.ENCAPSED, value: statement['raw']};
     }
-    private get_number(statement : object) : Element {return {type: Type.NUMBER, value: statement['value']}}
-    private get_offsetlookup(statement : object) : Element {return {type: Type.OFFSET, value: statement['what']['name']}}
-
-
-    private get_call(expression){
-        // retrieve function name
-        const funcName =  expression['what']['name'];
-
-        // check function's arguments
-        const arg_obj = Object.entries(expression).filter(([key1,_]) => key1 == "arguments");
-
-        let function_elements = [];
-        // function_elements.push(funcName);
-        
-        // Make sure function contains arguments
-        if(arg_obj.length != 0){
-            // store number of arguments
-            const numb_arg = expression['arguments'].length;
-            console.log(funcName + numb_arg);
-            
-            // Extract all arguments
-            for(let i=0 ; i < numb_arg ; i++){
-                if(expression['arguments'][i]['kind'] == "bin"){
-                    // function_elements.push(expression['arguments'][i]['left']['raw']);
-                    // function_elements.push(expression['arguments'][i]['right']['raw']);  
-                }else{
-                    if(expression['arguments'][i]['kind'] == "variable"){
-                        // function_elements.push(this.get_variable(expression['arguments'][i]))
-                    }
-                }
-            }
-        }
-
-        return function_elements;
-    }
-
+    private get_number(statement : object) : Element {return {type: Type.NUMBER, value: statement['value']};}
+    private get_offsetlookup(statement : object) : Element {return {type: Type.OFFSET, value: statement['what']['name']};}
 
 }
