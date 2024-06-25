@@ -1,7 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { FileParser } from './fileParser';
+import {injectionDetector} from './injectionDetector'
+
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -22,15 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
         const selection = editor.selection;
         const sourceCode = editor.document.getText(selection);
 
-        const fileParser = new FileParser(sourceCode)
-        const vars = fileParser.extract_elements();
-
-        // vars.forEach( (element) => {
-        //     // console.log(element)
-        //     if(typeof element == "object")
-        //         console.log(JSON.stringify(element));
-        //     else console.log(element); 
-        // });
+        const securityChecker = new injectionDetector(sourceCode);
+        securityChecker.get_domain_analysis();
 
 		// HERE : the algo should be called
 		const isVulnerable = /\d/.test(sourceCode);
@@ -58,3 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
+function delay(arg0: number) {
+    throw new Error('Function not implemented.');
+}
+
