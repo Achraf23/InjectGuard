@@ -15,18 +15,21 @@
     "commands": [
       {
         "command": "injectguard.injection",
-        "title": "InjectGuard "
+        "title": "InjectGuard : domain analysis "
       }
     ],
     "menus": {
-      "editor/context": [{
+      "editor/context": [
+        {
           "command": "injectguard.injection",
           "group": "bookmarks",
           "when": "editorHasSelection"
-    }]
-  }
+        }
+      ]
+    }
   },
   "scripts": {
+    "generate-client": "openapi-ts --input http://localhost:8000/openapi.json --output ./src/client --client axios",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
@@ -35,6 +38,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.47.2",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/vscode": "^1.89.0",
@@ -46,6 +50,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "axios": "^1.7.2",
     "php-parser": "^3.1.5"
   }
 }
