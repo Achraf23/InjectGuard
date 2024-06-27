@@ -8,13 +8,21 @@ export class injectionDetector {
         this.codeBlock = codeBlock;
     }
 
-    public get_domain_analysis() : void {
+    public get_domain_analysis() : string [] {
         const tab_domain = get_domain(this.codeBlock);
         
-        tab_domain.then((response)=> {
+        let domainVariables: string[] = [];
+
+        tab_domain
+        .then((response)=> {
             console.log(`Received response: ${response}`);
+            domainVariables = response;
         })
-        
+        .catch((error) => {
+            console.log("error getting domain analysis")
+        })
+
+        return domainVariables;
     }
 
 }

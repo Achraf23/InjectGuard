@@ -4,7 +4,7 @@
   "description": "analyzes code sample and determines if it's vulnerable to injection attacks ",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.89.1"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
