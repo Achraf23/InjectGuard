@@ -15,8 +15,13 @@
     "commands": [
       {
         "command": "injectguard.injection",
-        "title": "InjectGuard : domain analysis "
+        "title": "InjectGuard : Domain Analysis "
+      },
+      {
+        "command": "injectguard.injectAudit",
+        "title" : "InjectGuard: Security Audit"
       }
+       
     ],
     "menus": {
       "editor/context": [
@@ -24,6 +29,10 @@
           "command": "injectguard.injection",
           "group": "bookmarks",
           "when": "editorHasSelection"
+        },
+        {
+          "command": "injectguard.injectAudit",
+          "group": "bookmarks"          
         }
       ]
     }
