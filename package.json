@@ -14,25 +14,17 @@
   "contributes": {
     "commands": [
       {
-        "command": "injectguard.injection",
-        "title": "InjectGuard : Domain Analysis "
-      },
-      {
-        "command": "injectguard.injectAudit",
-        "title" : "InjectGuard: Security Audit"
+        "command": "extension.runCommand",
+        "title": "InjectGuad : Domain Analysis "
       }
        
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "injectguard.injection",
+          "command": "extension.runCommand",
           "group": "bookmarks",
           "when": "editorHasSelection"
-        },
-        {
-          "command": "injectguard.injectAudit",
-          "group": "bookmarks"          
         }
       ]
     }

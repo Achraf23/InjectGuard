@@ -1,88 +1,97 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { DomainHoverProvider } from './domainHoverProvider';
+import { get_domain } from './client/client';
 import { assert } from 'console';
-import { get_domain } from "./client/client";
-import { findSourceMap } from 'module';
 
-
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Congratulations, your extension "hover-log" is now active!');
 
-    let finish = false;
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showInformationMessage('No editor is active');
+        return;
+    }
 
-    // The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('injectguard.injection', () => {
-		// The code you place here will be executed every time your command is executed
+    // Retrieve selected code
+    const selection = editor.selection;
+    const sourceCode = editor.document.getText(selection);
+    // console.log(selection)
+    // console.log(sourceCode)
 
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showInformationMessage('No editor is active');
-            return;
-        }
+    const checkFunction = async() => {
+        const domainVariables = await get_domain(sourceCode);
 
-        // Retrieve selected code
-        const selection = editor.selection;
-        const sourceCode = editor.document.getText(selection);
-        console.log(sourceCode)
-
-        const checkFunction = async() => {
-            const domainVariables = await get_domain(sourceCode);
-
-            // Register a domain hover provider 
-            let hoverProvider = new DomainHoverProvider(selection,domainVariables);
-            let hoverLog = vscode.languages.registerHoverProvider('*', hoverProvider);
-            context.subscriptions.push(hoverLog);
-        }
-
-        checkFunction();
-
-        finish = true;
-
-	});
-
-
-    const auditDisposable = vscode.commands.registerCommand('injectguard.injectAudit', () => {
-        // Display a message box to the user
-        if(finish == true)
-            vscode.window.showInformationMessage('Not done yet!');
-        else{
-            vscode.window.showInformationMessage('Run Domain Analysis first !');
-        }
-    });
-
-    context.subscriptions.push(disposable);
-    context.subscriptions.push(auditDisposable);
-    
-
-    // HERE : the algo should be called
-    // const isVulnerable = /\d/.test(sourceCode);
-    
-    // // highlight in red if there is an injection vulnerability
-    // const decorationType = vscode.window.createTextEditorDecorationType({
-    //     backgroundColor: 'rgba(255,0,0,0.3)' // Light red background
-    // });
-
-    // if (isVulnerable) {
-    //     // Add decoration to the selected text
-    //     editor.setDecorations(decorationType, [selection]);
-    //     vscode.window.showInformationMessage('Code snippet vulnerable!');
+        // Register a domain hover provider 
+        let hoverProvider = new DomainHoverProvider(selection,domainVariables);
+        let hoverLog = vscode.languages.registerHoverProvider('php', hoverProvider);
         
-    // } else {
-    //     // Clear decorations if there are no vulnerabilities
-    //     editor.setDecorations(decorationType, []);
-    //     vscode.window.showInformationMessage('Selected text is fine.');
-    // }
+        context.subscriptions.push(hoverLog);
+    }
 
+    checkFunction();
+
+    const codeLensProvider = new CodeLensProvider(sourceCode);
+    const selector: vscode.DocumentSelector = { scheme: 'file', language: 'php' };
+    
+    context.subscriptions.push(
+        vscode.languages.registerCodeLensProvider(selector, codeLensProvider)
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.runCommand', (line: number) => {
+            vscode.window.showInformationMessage(`Command executed on line ${line}`);
+        })
+    );
+
+    
 }
 
+class CodeLensProvider implements vscode.CodeLensProvider {
+    onDidChangeCodeLenses?: vscode.Event<void> | undefined;
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+    private selection : string;
 
+    constructor(selection){
+        this.selection = selection;
+    }
 
+    provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+
+        const codeLenses: vscode.CodeLens[] = [];
+        const regex = /(sqlite_query|mysql_query|mysqli_query|pg_query)\([^)]*\)/g;
+        const regex2 = /(sqlite_query|mysql_query|mysqli_query|pg_query)\([^)]*\)/g;
+
+        const text = document.getText();
+        // console.log(text)
+        
+        let matches;
+        
+        while ((matches = regex.exec(this.selection)) !== null) {
+            console.log(matches)
+            // regex.lastIndex = 0;
+    
+
+            let matchWholeCode = regex2.exec(text);
+
+            if(matchWholeCode == null){
+                console.log("Problem regex");
+                return;
+            }
+
+            const line = document.lineAt(document.positionAt(matchWholeCode.index).line);
+           
+            const range = new vscode.Range(line.range.start, line.range.end);
+
+            const codeLens = new vscode.CodeLens(range, {
+                title: 'Launch security audit',
+                command: 'extension.runCommand',
+                arguments: [line.lineNumber]
+            });
+            codeLenses.push(codeLens);
+        }
+
+        console.log(codeLenses.length)
+
+        // console.log(codeLenses.length)
+        return codeLenses;
+    }
+}
