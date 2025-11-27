@@ -1,0 +1,69 @@
+services:
+  
+  db:
+    image: mysql
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes: 
+      - db_data:/var/lib/mysql    
+    ports:
+      - 3306:3306
+      - 33060:33060
+
+  phpmyadmin:
+       image: phpmyadmin/phpmyadmin
+       restart: always
+       ports:
+         - "8080:80"
+ 
+  wordpress:
+    image: wordpress:latest
+    ports:
+      - 80:80
+    restart: always
+    environment:
+      - WORDPRESS_DB_HOST=${WORDPRESS_DB_HOST}
+      - WORDPRESS_DB_USER=${WORDPRESS_DB_USER}
+      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
+      - WORDPRESS_DB_NAME=${WORDPRESS_DB_NAME}
+    volumes:
+      - ./wp-data:/var/www/html
+ 
+  # restore existing wordpress database
+  # run docker compose up restore to restore databse volume db_data'
+  restore:
+    image: alpine
+    profiles: ["manual"] # prevents this from starting by default
+    volumes:
+      - db_data:/backup_restore/db_data
+      - ./backup:/src_backup  # folder with database backup in case we want to start 
+                              # from an existing wordpress state
+    command: >
+      sh -c "
+        echo 'Extracting backup archive...' &&
+        mkdir -p /tmp/restore &&
+        tar -xvzf /src_backup/backup.tar.gz -C /backup_restore/db_data &&
+
+        echo 'Restore complete'
+      "
+
+volumes:
+  db_data:
+
+#  bind9:
+#    image: ubuntu/bind9:9.18-22.04_beta
+#    environment:
+#      - TZ=UTC
+#    ports:
+#      - "30053:53"
+#      - "30053:53/udp"
+#    volumes:
+#      - /opt/bind:/etc/bind
+#    networks:
+#      bindnet:
+#        ipv4_address: 172.25.0.10
+#
